@@ -367,6 +367,36 @@ class Solver:
 # A2: end of the solver
 # ============================================================================
 
+# A3 Simulation: 
+
+class Simulation:
+    def __init__(self):
+        self.number_of_simulations = 10
+
+    def simulate(self, game: HeapGo) -> str:
+        legal_moves = game.legal_moves()
+        if legal_moves == []:
+            return 'n'
+        winner = self.simulate_game_over(game)
+        return winner
+        
+
+    def simulate_game_over(self, game: HeapGo):
+
+        if game.game_over():
+            return game.winner()
+
+        heap_number = random.choice(game.legal_moves())
+        taken, gained = game.play_move(heap_number)
+        winner = self.simulate_game_over(game)
+        game.undo_move(heap_number, taken, gained)
+
+        return winner
+
+        
+
+# A3 end of simulation
+
 
 CommandMap = Dict[str, Callable[[str], bool]]
 
@@ -377,6 +407,8 @@ class CommandInterface:
         self.solver = Solver()  # A2
         self.timelimit = DEFAULT_TIMELIMIT  # A2
         # you can add your own initialisation here
+
+        self.simulation = Simulation() #A3
         self.commands: CommandMap = {
             "help": self.cmd_help,
             "heapgo": self.cmd_heapgo,
@@ -392,7 +424,7 @@ class CommandInterface:
             "simulate": self.cmd_simulate,
             "numsimulations": self.cmd_numsimulations,
             "policy": self.cmd_policy,
-            "policymoves": self.cmd_policymoves,
+            "policymoves": self.cmd_policymoves
             }
 
 #============================================================================
@@ -507,16 +539,34 @@ class CommandInterface:
             return False
         # you need to replace this random move by a move from your
         # simulation-based player
-        move = random.choice(moves)
-        self.game.play(move)
-        print(move)
+        wins = [0] * len(moves)
+        for index in range(len(moves)):
+            taken, gained = self.game.play_move(moves[index])
+            # print(moves[index])
+            for i in range(self.simulation.number_of_simulations):
+                # print(i)
+                winner = self.simulation.simulate_game_over(self.game) #double check if bool would suffice
+                # print(winner)
+                if winner != self.game.toplay:
+                    wins[index] += 1
+                # print(wins)
+            self.game.undo_move(moves[index], taken, gained)
+        move_to_play = moves[wins.index(max(wins))]
+        self.game.play(move_to_play)
+        print(move_to_play)
         return True
 
     def cmd_simulate(self, args: str) -> bool:
-        return not_yet()
+        simulation_result = self.simulation.simulate(self.game)
+        if simulation_result != 'n':
+            print(simulation_result)
+        return True
 
     def cmd_numsimulations(self, args: str) -> bool:
-        return not_yet()
+        n = float(args.split()[0])
+        if n.is_integer() and n > 2 and n < 101:
+            self.simulation.number_of_simulations = int(n)
+        return True
 
     def cmd_policy(self, args: str) -> bool:
         return not_yet()
