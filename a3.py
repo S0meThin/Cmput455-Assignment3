@@ -372,28 +372,62 @@ class Solver:
 class Simulation:
     def __init__(self):
         self.number_of_simulations = 10
+        self.policy_type = 'random'
 
     def simulate(self, game: HeapGo) -> str:
         legal_moves = game.legal_moves()
         if legal_moves == []:
-            return 'n'
-        winner = self.simulate_game_over(game)
+            return game.winner()
+        winner = self.random_policy(game)
         return winner
         
 
-    def simulate_game_over(self, game: HeapGo):
-
+    def random_policy(self, game: HeapGo):
         if game.game_over():
             return game.winner()
 
         heap_number = random.choice(game.legal_moves())
         taken, gained = game.play_move(heap_number)
-        winner = self.simulate_game_over(game)
+        winner = self.random_policy(game)
         game.undo_move(heap_number, taken, gained)
 
         return winner
 
-        
+    def get_probabilities_for_moves(self, game: HeapGo) -> List:
+        if self.policy_type == 'probabilistic':
+            moves = game.legal_moves()
+            weights = [0]*len(moves)
+            total = 0
+            for index in range(len(moves)): 
+                taken, gained = game.play_move(moves[index])
+                weights[index] += gained
+                game.undo_move(moves[index], taken, gained)
+                total += gained
+
+            probabilities = [0]*len(weights)
+            for index in range(len(weights)):
+                probabilities[index] = round(float(weights[index])/total,3)
+            return probabilities, moves
+
+        elif self.policy_type == 'random':
+            moves = game.legal_moves()
+            if len(moves) == 0:
+                return [], []
+            probabilities = [1/len(moves)]*len(moves)
+            return probabilities, moves
+
+    def probabilistic_policy(self, game: HeapGo):
+        if game.game_over():
+            return game.winner()
+
+        probabilities, moves = self.get_probabilities_for_moves(game)
+
+        move = random.choices(moves, weights=probabilities, k=1)[0]
+
+        taken, gained = game.play_move(move)
+        winner = self.probabilistic_policy(game)
+        game.undo_move(move, taken, gained)
+        return winner
 
 # A3 end of simulation
 
@@ -545,7 +579,7 @@ class CommandInterface:
             # print(moves[index])
             for i in range(self.simulation.number_of_simulations):
                 # print(i)
-                winner = self.simulation.simulate_game_over(self.game) #double check if bool would suffice
+                winner = self.simulation.random_policy(self.game) #double check if bool would suffice
                 # print(winner)
                 if winner != self.game.toplay:
                     wins[index] += 1
@@ -569,10 +603,25 @@ class CommandInterface:
         return True
 
     def cmd_policy(self, args: str) -> bool:
-        return not_yet()
+        policy_type = args.split()[0]
+        if policy_type == 'random':
+            self.simulation.policy_type = 'random'
+        elif policy_type == 'probabilistic':
+            self.simulation.policy_type = 'probabilistic'
+        else: 
+            return False
+        return True
 
     def cmd_policymoves(self, args: str) -> bool:
-        return not_yet()
+        probabilities, moves = self.simulation.get_probabilities_for_moves(self.game)
+        str_probabilites = ''
+        for index in range(len(probabilities)):
+            str_probabilites += f'{moves[index]} {probabilities[index]:.3f} '
+
+        if str_probabilites == '':
+            return True
+        print(str_probabilites)
+        return True
 #============================================================================
 # End of functions requiring implementation
 #============================================================================
