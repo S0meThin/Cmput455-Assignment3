@@ -429,6 +429,13 @@ class Simulation:
         game.undo_move(move, taken, gained)
         return winner
 
+    def run_policy(self, game: HeapGo):
+        if self.policy_type == 'random':
+            return self.random_policy(game)
+        elif self.policy_type == 'probabilistic':
+            return self.probabilistic_policy(game)
+        return None
+
 # A3 end of simulation
 
 
@@ -574,18 +581,20 @@ class CommandInterface:
         # you need to replace this random move by a move from your
         # simulation-based player
         wins = [0] * len(moves)
+        # rounds = [0] * len(moves)
         for index in range(len(moves)):
             taken, gained = self.game.play_move(moves[index])
             # print(moves[index])
             for i in range(self.simulation.number_of_simulations):
                 # print(i)
-                winner = self.simulation.random_policy(self.game) #double check if bool would suffice
+                winner = self.simulation.run_policy(self.game) #double check if bool would suffice
                 # print(winner)
                 if winner != self.game.toplay:
                     wins[index] += 1
                 # print(wins)
             self.game.undo_move(moves[index], taken, gained)
         move_to_play = moves[wins.index(max(wins))]
+        # print(moves, wins)
         self.game.play(move_to_play)
         print(move_to_play)
         return True
