@@ -374,12 +374,14 @@ class Simulation:
         self.number_of_simulations = 10
         self.policy_type = 'random'
 
-    def simulate(self, game: HeapGo) -> str:
-        legal_moves = game.legal_moves()
-        if legal_moves == []:
-            return game.winner()
-        winner = self.random_policy(game)
-        return winner
+    # def simulate(self, game: HeapGo) -> str:
+    #     legal_moves = game.legal_moves()
+
+    #     if legal_moves == []:
+    #         return game.winner()
+        
+    #     winner = self.run_policy(game)
+    #     return winner
         
 
     def random_policy(self, game: HeapGo):
@@ -393,9 +395,25 @@ class Simulation:
 
         return winner
 
+    def probabilistic_policy(self, game: HeapGo):
+        if game.game_over():
+            return game.winner()
+
+        probabilities, moves = self.get_probabilities_for_moves(game)
+
+        move = random.choices(moves, weights=probabilities, k=1)[0]
+
+        taken, gained = game.play_move(move)
+        winner = self.probabilistic_policy(game)
+        game.undo_move(move, taken, gained)
+
+        return winner
+
     def get_probabilities_for_moves(self, game: HeapGo) -> List:
+        moves = game.legal_moves()
+        if len(moves) == 0:
+            return [], []
         if self.policy_type == 'probabilistic':
-            moves = game.legal_moves()
             weights = [0]*len(moves)
             total = 0
             for index in range(len(moves)): 
@@ -410,24 +428,9 @@ class Simulation:
             return probabilities, moves
 
         elif self.policy_type == 'random':
-            moves = game.legal_moves()
-            if len(moves) == 0:
-                return [], []
             probabilities = [1/len(moves)]*len(moves)
             return probabilities, moves
-
-    def probabilistic_policy(self, game: HeapGo):
-        if game.game_over():
-            return game.winner()
-
-        probabilities, moves = self.get_probabilities_for_moves(game)
-
-        move = random.choices(moves, weights=probabilities, k=1)[0]
-
-        taken, gained = game.play_move(move)
-        winner = self.probabilistic_policy(game)
-        game.undo_move(move, taken, gained)
-        return winner
+        return None
 
     def run_policy(self, game: HeapGo):
         if self.policy_type == 'random':
@@ -435,6 +438,14 @@ class Simulation:
         elif self.policy_type == 'probabilistic':
             return self.probabilistic_policy(game)
         return None
+
+    def simulation_round(self, game: HeapGo):
+        wins = 0
+        for i in range(self.number_of_simulations):
+            winner = self.run_policy(game) #double check if bool would suffice
+            if winner != game.toplay:
+                wins += 1
+        return wins
 
 # A3 end of simulation
 
@@ -580,36 +591,28 @@ class CommandInterface:
             return False
         # you need to replace this random move by a move from your
         # simulation-based player
-        wins = [0] * len(moves)
-        # rounds = [0] * len(moves)
+        wins = [0]*len(moves)
         for index in range(len(moves)):
             taken, gained = self.game.play_move(moves[index])
-            # print(moves[index])
-            for i in range(self.simulation.number_of_simulations):
-                # print(i)
-                winner = self.simulation.run_policy(self.game) #double check if bool would suffice
-                # print(winner)
-                if winner != self.game.toplay:
-                    wins[index] += 1
-                # print(wins)
+            wins[index] = self.simulation.simulation_round(self.game)
             self.game.undo_move(moves[index], taken, gained)
+
         move_to_play = moves[wins.index(max(wins))]
-        # print(moves, wins)
         self.game.play(move_to_play)
         print(move_to_play)
         return True
 
     def cmd_simulate(self, args: str) -> bool:
-        simulation_result = self.simulation.simulate(self.game)
-        if simulation_result != 'n':
-            print(simulation_result)
+        simulation_result = self.simulation.run_policy(self.game)
+        print(simulation_result)
         return True
 
     def cmd_numsimulations(self, args: str) -> bool:
         n = float(args.split()[0])
-        if n.is_integer() and n > 2 and n < 101:
+        if n.is_integer() and n >= 1 and n <= 100: #do the reverse
             self.simulation.number_of_simulations = int(n)
-        return True
+            return True
+        return False
 
     def cmd_policy(self, args: str) -> bool:
         policy_type = args.split()[0]
