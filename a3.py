@@ -367,22 +367,13 @@ class Solver:
 # A2: end of the solver
 # ============================================================================
 
+
 # A3 Simulation: 
 
 class Simulation:
     def __init__(self):
         self.number_of_simulations = 10
         self.policy_type = 'random'
-
-    # def simulate(self, game: HeapGo) -> str:
-    #     legal_moves = game.legal_moves()
-
-    #     if legal_moves == []:
-    #         return game.winner()
-        
-    #     winner = self.run_policy(game)
-    #     return winner
-        
 
     def random_policy(self, game: HeapGo):
         if game.game_over():
@@ -414,17 +405,17 @@ class Simulation:
         if len(moves) == 0:
             return [], []
         if self.policy_type == 'probabilistic':
-            weights = [0]*len(moves)
+            weights = [0]*len(moves) 
             total = 0
             for index in range(len(moves)): 
                 taken, gained = game.play_move(moves[index])
-                weights[index] += gained
+                weights[index] += gained 
                 game.undo_move(moves[index], taken, gained)
-                total += gained
+                total += gained 
 
             probabilities = [0]*len(weights)
             for index in range(len(weights)):
-                probabilities[index] = round(float(weights[index])/total,3)
+                probabilities[index] = float(weights[index])/total
             return probabilities, moves
 
         elif self.policy_type == 'random':
@@ -442,8 +433,8 @@ class Simulation:
     def simulation_round(self, game: HeapGo):
         wins = 0
         for i in range(self.number_of_simulations):
-            winner = self.run_policy(game) #double check if bool would suffice
-            if winner != game.toplay:
+            winner = self.run_policy(game) 
+            if winner != game.toplay: # draws are impossible, so we return # of wins for the other player(we played a move before in genmove)
                 wins += 1
         return wins
 
@@ -609,7 +600,7 @@ class CommandInterface:
 
     def cmd_numsimulations(self, args: str) -> bool:
         n = float(args.split()[0])
-        if n.is_integer() and n >= 1 and n <= 100: #do the reverse
+        if n.is_integer() and n >= 1 and n <= 100: 
             self.simulation.number_of_simulations = int(n)
             return True
         return False
@@ -626,12 +617,12 @@ class CommandInterface:
 
     def cmd_policymoves(self, args: str) -> bool:
         probabilities, moves = self.simulation.get_probabilities_for_moves(self.game)
+        if len(moves) == 0:
+            return True
         str_probabilites = ''
         for index in range(len(probabilities)):
             str_probabilites += f'{moves[index]} {probabilities[index]:.3f} '
 
-        if str_probabilites == '':
-            return True
         print(str_probabilites)
         return True
 #============================================================================
